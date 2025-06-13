@@ -683,5 +683,3 @@ const Dashboard2: React.FC = () => {
 };
 
 export default Dashboard2;
-
-export default Dashboard2
