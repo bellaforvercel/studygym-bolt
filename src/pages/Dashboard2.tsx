@@ -44,15 +44,15 @@ const fadeIn = {
 
 // Sample data
 const STUDY_ROOM_PARTICIPANTS: StudyParticipant[] = [
-  { id: '1', name: 'Alex Johnson', avatar: '👨\u200d💻', status: 'online', isActive: true },
-  { id: '2', name: 'Taylor Smith', avatar: '👩\u200d🎓', status: 'online', isActive: true },
-  { id: '3', name: 'Jordan Lee', avatar: '👨\u200d🔬', status: 'idle', isActive: false },
-  { id: '4', name: 'Casey Kim', avatar: '👩\u200d💼', status: 'away', isActive: false },
-  { id: '5', name: 'Riley Chen', avatar: '👨\u200d🏫', status: 'online', isActive: true },
+  { id: '1', name: 'Alex Johnson', avatar: '👨‍💻', status: 'online', isActive: true },
+  { id: '2', name: 'Taylor Smith', avatar: '👩‍🎓', status: 'online', isActive: true },
+  { id: '3', name: 'Jordan Lee', avatar: '👨‍🔬', status: 'idle', isActive: false },
+  { id: '4', name: 'Casey Kim', avatar: '👩‍💼', status: 'away', isActive: false },
+  { id: '5', name: 'Riley Chen', avatar: '👨‍🏫', status: 'online', isActive: true },
 ];
 
 const TOP_LEARNERS: TopLearner[] = [
-  { id: '1', name: 'Alex Johnson', avatar: '👨\u200d💻', rank: 1, points: 1250, studyTime: '4h 22m', pagesRead: 87 },
+  { id: '1', name: 'Alex Johnson', avatar: '👨‍💻', rank: 1, points: 1250, studyTime: '4h 22m', pagesRead: 87 },
 ];
 
 const Dashboard2: React.FC = () => {
@@ -523,7 +523,7 @@ const Dashboard2: React.FC = () => {
                     <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-lg cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all">
                       {participant.avatar}
                     </div>
-                    {participant.isOnline && (
+                    {participant.isActive && (
                       <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                     )}
                     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -636,4 +636,6 @@ const Dashboard2: React.FC = () => {
       </AnimatePresence>
     </div>
   );
-}
+};
+
+export default Dashboard2;
