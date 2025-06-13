@@ -494,10 +494,10 @@ const Dashboard2: React.FC = () => {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'tween', duration: 0.2 }}
-              className="w-80 bg-white border-l border-gray-200 flex flex-col relative z-10 h-full"
+              className="w-80 bg-white border-l border-gray-200 flex flex-col relative z-10"
             >
               {/* Sidebar Header */}
-              <div className="p-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+              <div className="p-6 border-b border-gray-200 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Study Dashboard</h2>
                 <button 
                   onClick={() => setIsSidebarOpen(false)}
@@ -507,137 +507,134 @@ const Dashboard2: React.FC = () => {
                 </button>
               </div>
 
-              {/* Scrollable Content Container */}
-              <div className="flex-1 overflow-y-auto">
-                {/* Focus Timer */}
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-base font-semibold text-gray-900 mb-4">Focus Timer</h3>
-                  
-                  <div className="flex items-center justify-center mb-6">
-                    <div className="relative w-40 h-40">
-                      <svg className="w-40 h-40 transform -rotate-90" viewBox="0 0 120 120">
-                        <circle
-                          cx="60"
-                          cy="60"
-                          r="54"
-                          stroke="#e5e7eb"
-                          strokeWidth="8"
-                          fill="none"
-                        />
-                        <circle
-                          cx="60"
-                          cy="60"
-                          r="54"
-                          stroke="#2563eb"
-                          strokeWidth="8"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeDasharray={`${2 * Math.PI * 54}`}
-                          strokeDashoffset={`${2 * Math.PI * 54 * (1 - progress / 100)}`}
-                          className="transition-all duration-1000"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-3xl font-bold text-gray-900">
-                          {formatTime(timeLeft)}
-                        </span>
-                      </div>
+              {/* Focus Timer */}
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="text-base font-semibold text-gray-900 mb-4">Focus Timer</h3>
+                
+                <div className="flex items-center justify-center mb-6">
+                  <div className="relative w-40 h-40">
+                    <svg className="w-40 h-40 transform -rotate-90" viewBox="0 0 120 120">
+                      <circle
+                        cx="60"
+                        cy="60"
+                        r="54"
+                        stroke="#e5e7eb"
+                        strokeWidth="8"
+                        fill="none"
+                      />
+                      <circle
+                        cx="60"
+                        cy="60"
+                        r="54"
+                        stroke="#2563eb"
+                        strokeWidth="8"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeDasharray={`${2 * Math.PI * 54}`}
+                        strokeDashoffset={`${2 * Math.PI * 54 * (1 - progress / 100)}`}
+                        className="transition-all duration-1000"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold text-gray-900">
+                        {formatTime(timeLeft)}
+                      </span>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-center space-x-3 mb-4">
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={toggleTimer}
-                      className="flex items-center justify-center w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors"
-                    >
-                      {isTimerRunning ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-                    </motion.button>
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={resetTimer}
-                      className="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                    </motion.button>
-                  </div>
                 </div>
 
-                {/* Study Room */}
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-base font-semibold text-gray-900 mb-4">Study Room</h3>
-                  
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {studyRoomParticipants.map((participant) => (
-                      <div key={participant.id} className="relative group">
-                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-lg cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all">
-                          {participant.avatar}
-                        </div>
-                        {participant.isActive && (
-                          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                        )}
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          {participant.name}
-                        </div>
+                <div className="flex items-center justify-center space-x-3 mb-4">
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={toggleTimer}
+                    className="flex items-center justify-center w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors"
+                  >
+                    {isTimerRunning ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={resetTimer}
+                    className="flex items-center justify-center w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Study Room */}
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="text-base font-semibold text-gray-900 mb-4">Study Room</h3>
+                
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {studyRoomParticipants.map((participant) => (
+                    <div key={participant.id} className="relative group">
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-lg cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all">
+                        {participant.avatar}
                       </div>
-                    ))}
-                  </div>
-                  
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">{studyRoomParticipants.length} students</span> studying now
-                  </p>
+                      {participant.isActive && (
+                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                      )}
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        {participant.name}
+                      </div>
+                    </div>
+                  ))}
                 </div>
+                
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">{studyRoomParticipants.length} students</span> studying now
+                </p>
+              </div>
 
-                {/* Today's Top Learners */}
-                <div className="p-6">
-                  <h3 className="text-base font-semibold text-gray-900 mb-4">Today's Top Learners</h3>
-                  
-                  <div className="space-y-3">
-                    {topLearners.map((learner) => (
-                      <motion.div 
-                        key={learner.id} 
-                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
-                        whileHover={{ x: 4 }}
-                      >
-                        <div className="flex items-center justify-center w-6 h-6 flex-shrink-0">
-                          {learner.rank === 1 && (
-                            <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center">
-                              <Trophy className="w-3 h-3 text-white" />
-                            </div>
-                          )}
-                          {learner.rank > 1 && (
-                            <span className="text-sm font-bold text-gray-600">{learner.rank}</span>
-                          )}
-                        </div>
-                        
-                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm flex-shrink-0">
-                          {learner.avatar}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {learner.name}
-                          </p>
-                          <div className="flex items-center space-x-2 text-xs text-gray-500">
-                            <div className="flex items-center space-x-1">
-                              <Clock className="w-3 h-3" />
-                              <span>{learner.studyTime}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <BookOpen className="w-3 h-3" />
-                              <span>{learner.pagesRead} pages</span>
-                            </div>
+              {/* Today's Top Learners */}
+              <div className="flex-1 p-6 overflow-y-auto">
+                <h3 className="text-base font-semibold text-gray-900 mb-4">Today's Top Learners</h3>
+                
+                <div className="space-y-3">
+                  {topLearners.map((learner) => (
+                    <motion.div 
+                      key={learner.id} 
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                      whileHover={{ x: 4 }}
+                    >
+                      <div className="flex items-center justify-center w-6 h-6 flex-shrink-0">
+                        {learner.rank === 1 && (
+                          <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center">
+                            <Trophy className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                        {learner.rank > 1 && (
+                          <span className="text-sm font-bold text-gray-600">{learner.rank}</span>
+                        )}
+                      </div>
+                      
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm flex-shrink-0">
+                        {learner.avatar}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {learner.name}
+                        </p>
+                        <div className="flex items-center space-x-2 text-xs text-gray-500">
+                          <div className="flex items-center space-x-1">
+                            <Clock className="w-3 h-3" />
+                            <span>{learner.studyTime}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <BookOpen className="w-3 h-3" />
+                            <span>{learner.pagesRead} pages</span>
                           </div>
                         </div>
-                        
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-blue-600">
-                            {learner.points}
-                          </p>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
+                      </div>
+                      
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-blue-600">
+                          {learner.points}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
               </div>
             </motion.div>
@@ -648,4 +645,43 @@ const Dashboard2: React.FC = () => {
         {!isSidebarOpen && !isZenMode && (
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="fixed top-1/2 right-4 transform -translate-y-1/2 w-10 h-10 bg-white border border-gray-200 rounded-full shadow-lg
+            className="fixed top-1/2 right-4 transform -translate-y-1/2 w-10 h-10 bg-white border border-gray-200 rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors z-20"
+          >
+            <ChevronLeft className="w-5 h-5 text-gray-600" />
+          </button>
+        )}
+      </div>
+
+      {/* AI Assistant Popup */}
+      <AIAssistantPopup
+        isVisible={showAiPopup}
+        position={aiPopupPosition}
+        selectedText={selectedText}
+        response={aiResponse}
+        isTyping={isAiTyping}
+        onClose={() => setShowAiPopup(false)}
+      />
+
+      {/* Comprehension Check Modal */}
+      <ComprehensionCheckModal
+        isVisible={showComprehensionCheck}
+        onClose={() => setShowComprehensionCheck(false)}
+        onNeedHelp={() => {
+          setShowComprehensionCheck(false);
+          setShowAiPopup(true);
+          setSelectedText('quantum entanglement');
+          setAiResponse('');
+          setIsAiTyping(true);
+          setTimeout(() => {
+            setAiResponse('Quantum entanglement is when particles become connected and instantly affect each other, no matter how far apart they are. Think of it like having two magical coins that always land on opposite sides - when one shows heads, the other will always show tails, even if they\'re on different planets!');
+            setIsAiTyping(false);
+          }, 1500);
+        }}
+      />
+    </div>
+  );
+};
+
+export default Dashboard2;
+
+export default Dashboard2
