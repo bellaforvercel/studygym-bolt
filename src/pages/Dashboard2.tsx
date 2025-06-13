@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Play, Pause, RotateCcw, Search, ZoomIn, ZoomOut, RotateCw, Settings,
   ChevronRight, ChevronLeft, Clock, Users, Trophy, BookOpen,
   X, Moon, Sun, Bell, MessageCircle, Bookmark, Share2,
   CheckCircle2, HelpCircle, Volume2, VolumeX, BookText, Minimize2, Maximize2,
-  Sparkles, Brain, Target, Award, Star, FileText
+  Sparkles, Brain, Target, Award, Star, FileText, Upload, ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -26,6 +26,16 @@ interface TopLearner {
   points: number;
   studyTime: string;
   pagesRead: number;
+}
+
+interface Document {
+  id: string;
+  title: string;
+  type: 'PDF' | 'DOCX' | 'TXT';
+  uploadDate: string;
+  pages?: number;
+  size: string;
+  content?: string;
 }
 
 interface AIPopupProps {
@@ -184,15 +194,118 @@ const ComprehensionCheckModal: React.FC<{
   );
 };
 
+// Document Upload Modal Component
+const DocumentUploadModal: React.FC<{
+  isVisible: boolean;
+  onClose: () => void;
+  onDocumentUpload: (document: Document) => void;
+}> = ({ isVisible, onClose, onDocumentUpload }) => {
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setIsUploading(true);
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        
+        setTimeout(() => {
+          const newDocument: Document = {
+            id: Date.now().toString(),
+            title: file.name.replace(/\.[^/.]+$/, ''),
+            type: file.name.split('.').pop()?.toUpperCase() as 'PDF' | 'DOCX' | 'TXT',
+            uploadDate: new Date().toISOString().split('T')[0],
+            size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+            content: file.type === 'text/plain' ? content : undefined
+          };
+          
+          onDocumentUpload(newDocument);
+          setIsUploading(false);
+          onClose();
+        }, 1500);
+      };
+      
+      if (file.type === 'text/plain') {
+        reader.readAsText(file);
+      } else {
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-white rounded-xl p-6 w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">Upload Document</h3>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <label className="block">
+          <input
+            type="file"
+            accept=".pdf,.docx,.txt"
+            onChange={handleFileUpload}
+            className="hidden"
+            disabled={isUploading}
+          />
+          <div className="w-full flex items-center justify-center px-4 py-8 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer">
+            {isUploading ? (
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-blue-600">Uploading...</span>
+              </div>
+            ) : (
+              <div className="text-center">
+                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="font-medium text-gray-700 mb-1">Upload a document</p>
+                <p className="text-sm text-gray-500">PDF, DOCX, or TXT files</p>
+              </div>
+            )}
+          </div>
+        </label>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 // Main Dashboard2 Component
 const Dashboard2: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get document from navigation state
+  const [currentDocument, setCurrentDocument] = useState<Document | null>(
+    location.state?.document || null
+  );
   
   // UI State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [isZenMode, setIsZenMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showUploadModal, setShowUploadModal] = useState(false);
   
   // Timer State
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -201,12 +314,6 @@ const Dashboard2: React.FC = () => {
   
   // Document State
   const [zoomLevel, setZoomLevel] = useState(100);
-  const [currentDocument] = useState({
-    title: 'Introduction to Quantum Physics',
-    type: 'PDF' as const,
-    pages: 24,
-    currentPage: 1
-  });
   
   // AI Assistant State
   const [showAiPopup, setShowAiPopup] = useState(false);
@@ -335,6 +442,89 @@ const Dashboard2: React.FC = () => {
     }
   };
 
+  // Handle document upload
+  const handleDocumentUpload = (document: Document) => {
+    setCurrentDocument(document);
+  };
+
+  // Render document content
+  const renderDocumentContent = () => {
+    if (!currentDocument) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-gray-500">
+          <FileText className="w-16 h-16 mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No document selected</h3>
+          <p className="text-center mb-6">Upload a document to start studying</p>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Upload Document</span>
+          </button>
+        </div>
+      );
+    }
+
+    // For text files, show the actual content
+    if (currentDocument.type === 'TXT' && currentDocument.content) {
+      return (
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg p-8 min-h-full">
+            <h1 className="text-4xl font-bold text-gray-900 mb-8">
+              {currentDocument.title}
+            </h1>
+            <div className="prose prose-lg max-w-none">
+              <pre className="whitespace-pre-wrap text-gray-700 leading-relaxed font-sans">
+                {currentDocument.content}
+              </pre>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // For PDF/DOCX files, show placeholder with document info
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white rounded-lg p-8 min-h-full">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-blue-600" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              {currentDocument.title}
+            </h1>
+            <div className="flex items-center justify-center space-x-4 text-sm text-gray-600">
+              <span>{currentDocument.type}</span>
+              <span>•</span>
+              <span>{currentDocument.size}</span>
+              {currentDocument.pages && (
+                <>
+                  <span>•</span>
+                  <span>{currentDocument.pages} pages</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
+            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">
+              Document Preview Not Available
+            </h3>
+            <p className="text-gray-600 mb-4">
+              PDF and DOCX preview functionality is coming soon. For now, you can use the timer and study features.
+            </p>
+            <p className="text-sm text-gray-500">
+              Try uploading a TXT file to see the full document content.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Top Navigation */}
@@ -342,6 +532,13 @@ const Dashboard2: React.FC = () => {
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between relative z-20">
           {/* Left Section */}
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/dashboard-1')}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Back to Focus Rooms"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
             <div className="flex items-center space-x-2">
               <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
                 <BookOpen className="w-4 h-4 text-white" />
@@ -349,7 +546,7 @@ const Dashboard2: React.FC = () => {
               <span className="font-semibold text-gray-900 hidden sm:inline">StudyFlow</span>
             </div>
             <span className="text-gray-600 truncate max-w-[200px] sm:max-w-md">
-              {currentDocument.title}
+              {currentDocument?.title || 'No document selected'}
             </span>
           </div>
 
@@ -369,6 +566,13 @@ const Dashboard2: React.FC = () => {
 
           {/* Right Section */}
           <div className="flex items-center space-x-2 sm:space-x-4">
+            <button 
+              onClick={() => setShowUploadModal(true)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Upload Document"
+            >
+              <Upload className="w-5 h-5 text-gray-600" />
+            </button>
             <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <Bell className="w-5 h-5 text-gray-600" />
             </button>
@@ -394,12 +598,12 @@ const Dashboard2: React.FC = () => {
         {/* Document Viewer */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Document Toolbar */}
-          {!isZenMode && (
+          {!isZenMode && currentDocument && (
             <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-1 text-sm text-gray-600">
                   <FileText className="w-4 h-4" />
-                  <span>PDF</span>
+                  <span>{currentDocument.type}</span>
                 </div>
               </div>
               
@@ -436,51 +640,8 @@ const Dashboard2: React.FC = () => {
               padding: isZenMode ? '2rem' : '1rem'
             }}
           >
-            <div className={`max-w-4xl mx-auto ${isZenMode ? 'py-8' : 'py-4'}`}>
-              <div className="bg-white rounded-lg p-8 min-h-full">
-                <h1 className="text-4xl font-bold text-gray-900 mb-8">
-                  Introduction to Quantum Physics
-                </h1>
-
-                <div className="prose prose-lg max-w-none">
-                  <p className="text-gray-700 leading-relaxed mb-6">
-                    Quantum physics is a fundamental theory in physics that provides a description of the physical properties of 
-                    nature at the scale of atoms and subatomic particles. It is the foundation of all quantum physics including 
-                    quantum chemistry, quantum field theory, quantum technology, and quantum information science.
-                  </p>
-
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4 mt-8">
-                    Wave-Particle Duality
-                  </h2>
-
-                  <p className="text-gray-700 leading-relaxed mb-6">
-                    Wave–particle duality is the concept in quantum mechanics that every particle or quantum entity may be 
-                    described as either a particle or a wave. It expresses the inability of the classical concepts "particle" or "wave" 
-                    to fully describe the behavior of quantum-scale objects.
-                  </p>
-
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4 mt-8">
-                    Heisenberg's Uncertainty Principle
-                  </h2>
-
-                  <p className="text-gray-700 leading-relaxed mb-6">
-                    The uncertainty principle is any of a variety of mathematical inequalities asserting a fundamental limit to the 
-                    accuracy with which the values for certain pairs of physical quantities of a particle, such as position and 
-                    momentum, can be predicted from initial conditions.
-                  </p>
-
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4 mt-8">
-                    Quantum Entanglement
-                  </h2>
-
-                  <p className="text-gray-700 leading-relaxed mb-6">
-                    Quantum entanglement is a physical phenomenon that occurs when a group of particles are generated, 
-                    interact, or share spatial proximity in a way such that the quantum state of each particle of the group cannot 
-                    be described independently of the state of the others, including when the particles are separated by a large 
-                    distance.
-                  </p>
-                </div>
-              </div>
+            <div className={`${isZenMode ? 'py-8' : 'py-4'}`}>
+              {renderDocumentContent()}
             </div>
           </div>
         </div>
@@ -654,6 +815,13 @@ const Dashboard2: React.FC = () => {
           </button>
         )}
       </div>
+
+      {/* Document Upload Modal */}
+      <DocumentUploadModal
+        isVisible={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onDocumentUpload={handleDocumentUpload}
+      />
 
       {/* AI Assistant Popup */}
       <AIAssistantPopup
