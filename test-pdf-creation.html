@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test PDF Creation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <h1>Create Test PDF</h1>
+    <button onclick="createTestPDF()">Create Test PDF</button>
+    
+    <script>
+        function createTestPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(20);
+            doc.text('StudyGym Test Document', 20, 30);
+            
+            doc.setFontSize(12);
+            doc.text('This is a test PDF document to verify the PDF viewing functionality.', 20, 50);
+            doc.text('', 20, 60);
+            doc.text('Features to test:', 20, 70);
+            doc.text('• PDF rendering with react-pdf', 30, 80);
+            doc.text('• Zoom functionality', 30, 90);
+            doc.text('• Error handling', 30, 100);
+            doc.text('• Loading states', 30, 110);
+            
+            doc.text('If you can see this text, the PDF viewer is working correctly!', 20, 130);
+            
+            // Save the PDF
+            doc.save('studygym-test.pdf');
+        }
+    </script>
+</body>
+</html>

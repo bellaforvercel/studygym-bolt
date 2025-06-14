@@ -5,9 +5,12 @@ import {
   ChevronRight, ChevronLeft, Clock, Users, Trophy, BookOpen,
   X, Moon, Sun, Bell, MessageCircle, Bookmark, Share2,
   CheckCircle2, HelpCircle, Volume2, VolumeX, BookText, Minimize2, Maximize2,
-  Sparkles, Brain, Target, Award, Star, FileText, Upload, ArrowLeft
+  Sparkles, Brain, Target, Award, Star, FileText, Upload, ArrowLeft, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import PdfViewer from '../components/PdfViewer';
+import { parseDocx, parseDocxToHtml } from '../utils/docxParser';
+import '../styles/pdf-viewer.css';
 
 // Types
 interface StudyParticipant {
@@ -36,6 +39,9 @@ interface Document {
   pages?: number;
   size: string;
   content?: string;
+  file?: File;
+  rawContent?: any;
+  [key: string]: any; // For any additional dynamic properties
 }
 
 interface AIPopupProps {
@@ -202,36 +208,78 @@ const DocumentUploadModal: React.FC<{
 }> = ({ isVisible, onClose, onDocumentUpload }) => {
   const [isUploading, setIsUploading] = useState(false);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setIsUploading(true);
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const fileInput = event.target;
+    const file = fileInput.files?.[0];
+    
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
+
+    console.log('Processing file upload:', file.name);
+    setIsUploading(true);
+    
+    try {
+      // Get file extension and type
+      const fileName = file.name.toLowerCase();
+      const extension = fileName.split('.').pop() || '';
+      let type: 'PDF' | 'DOCX' | 'TXT' = 'TXT';
       
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
-        
-        setTimeout(() => {
-          const newDocument: Document = {
-            id: Date.now().toString(),
-            title: file.name.replace(/\.[^/.]+$/, ''),
-            type: file.name.split('.').pop()?.toUpperCase() as 'PDF' | 'DOCX' | 'TXT',
-            uploadDate: new Date().toISOString().split('T')[0],
-            size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-            content: file.type === 'text/plain' ? content : undefined
-          };
-          
-          onDocumentUpload(newDocument);
-          setIsUploading(false);
-          onClose();
-        }, 1500);
+      // Determine document type based on extension and mime type
+      const isPdf = extension === 'pdf' || file.type === 'application/pdf';
+      const isDocx = ['docx'].includes(extension) || 
+                    file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      const isDoc = ['doc'].includes(extension);
+      
+      if (isPdf) {
+        type = 'PDF';
+      } else if (isDocx) {
+        type = 'DOCX';
+      } else if (isDoc) {
+        // Convert .doc to DOCX since we can't process .doc files directly
+        alert('Please convert .doc files to .docx format for better compatibility.');
+        return;
+      } else if (extension !== 'txt' && file.type !== 'text/plain') {
+        // Only allow PDF, DOCX, and TXT files
+        alert('Unsupported file type. Please upload a PDF, DOCX, or TXT file.');
+        return;
+      }
+      
+      // Validate file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        alert('File size is too large. Maximum file size is 10MB.');
+        return;
+      }
+      
+      // Create the document object with file reference
+      const newDocument: Document = {
+        id: Date.now().toString(),
+        title: file.name.replace(/\.[^/.]+$/, ''),
+        type,
+        uploadDate: new Date().toISOString().split('T')[0],
+        size: file.size < 1024 * 1024 
+          ? `${Math.ceil(file.size / 1024)} KB` 
+          : `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        file: file
       };
       
-      if (file.type === 'text/plain') {
-        reader.readAsText(file);
-      } else {
-        reader.readAsDataURL(file);
-      }
+      console.log('Created document object:', {
+        ...newDocument,
+        file: { name: file.name, size: file.size, type: file.type }
+      });
+      
+      // Call the upload handler with the document
+      await onDocumentUpload(newDocument);
+      onClose();
+    } catch (error) {
+      console.error('Error processing file upload:', error);
+      alert(`Failed to process the file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsUploading(false);
+      // Reset the file input
+      fileInput.value = '';
     }
   };
 
@@ -442,9 +490,113 @@ const Dashboard2: React.FC = () => {
     }
   };
 
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup any blob URLs when the component unmounts
+      if (currentDocument?.rawContent && typeof currentDocument.rawContent === 'string') {
+        try {
+          URL.revokeObjectURL(currentDocument.rawContent);
+        } catch (e) {
+          console.warn('Failed to revoke object URL:', e);
+        }
+      }
+    };
+  }, [currentDocument]);
+
   // Handle document upload
-  const handleDocumentUpload = (document: Document) => {
-    setCurrentDocument(document);
+  const handleDocumentUpload = async (document: Document) => {
+    try {
+      // Clean up previous blob URL if it exists
+      if (currentDocument?.rawContent && typeof currentDocument.rawContent === 'string') {
+        try {
+          URL.revokeObjectURL(currentDocument.rawContent);
+        } catch (e) {
+          console.warn('Failed to revoke previous object URL:', e);
+        }
+      }
+
+      setCurrentDocument({ ...document, rawContent: null });
+      
+      if (document.file) {
+        console.log('Processing document:', {
+          name: document.file.name,
+          type: document.file.type,
+          size: document.file.size,
+          documentType: document.type
+        });
+
+        if (document.type === 'PDF') {
+          try {
+            console.log('Processing PDF file:', document.file.name);
+
+            // Create a blob URL for the PDF file - let react-pdf handle validation
+            const fileUrl = URL.createObjectURL(document.file);
+            console.log('Created blob URL for PDF:', fileUrl);
+
+            // Set the document immediately - react-pdf will handle errors
+            setCurrentDocument({
+              ...document,
+              rawContent: fileUrl,
+              content: undefined
+            });
+
+            console.log('PDF document set successfully');
+          } catch (error) {
+            console.error('Error processing PDF:', error);
+            throw error; // Re-throw to be caught by the outer try-catch
+          }
+        } else if (document.type === 'DOCX') {
+          console.log('Processing DOCX file');
+          try {
+            // For DOCX, parse to HTML for better formatting
+            const result = await parseDocxToHtml(document.file);
+            console.log('DOCX parsed to HTML successfully');
+            setCurrentDocument({
+              ...document,
+              content: result.content,
+              rawContent: result
+            });
+          } catch (error) {
+            console.error('Error parsing DOCX:', error);
+            // Fallback to plain text parsing
+            try {
+              console.log('Falling back to plain text parsing');
+              const fallbackResult = await parseDocx(document.file);
+              setCurrentDocument({
+                ...document,
+                content: fallbackResult.content,
+                rawContent: fallbackResult
+              });
+            } catch (fallbackError) {
+              console.error('Fallback parsing also failed:', fallbackError);
+              throw error; // Re-throw original error
+            }
+          }
+        } else if (document.type === 'TXT') {
+          console.log('Processing TXT file');
+          try {
+            // For TXT, read as text
+            const content = await document.file.text();
+            console.log('TXT content loaded, length:', content.length);
+            setCurrentDocument({
+              ...document,
+              content,
+              rawContent: content
+            });
+          } catch (error) {
+            console.error('Error reading TXT file:', error);
+            throw error; // Re-throw to be caught by the outer try-catch
+          }
+        }
+      } else {
+        setCurrentDocument(document);
+      }
+    } catch (error) {
+      console.error('Error processing document:', error);
+      // Fallback to just setting the document without processing
+      setCurrentDocument(document);
+    }
   };
 
   // Render document content
@@ -466,16 +618,103 @@ const Dashboard2: React.FC = () => {
       );
     }
 
-    // For text files, show the actual content
+    // Common document header
+    const renderDocumentHeader = () => (
+      <div className="mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 text-center sm:text-left">
+          {currentDocument.title}
+        </h1>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+          <span className="px-2 py-1 bg-gray-100 rounded-md">
+            {currentDocument.type}
+          </span>
+          <span>•</span>
+          <span>{currentDocument.size}</span>
+          {currentDocument.pages && (
+            <>
+              <span>•</span>
+              <span>{currentDocument.pages} pages</span>
+            </>
+          )}
+        </div>
+      </div>
+    );
+
+    // Loading state
+    const renderLoadingState = (message = 'Loading document...') => (
+      <div className="flex flex-col items-center justify-center p-12 text-center">
+        <Loader2 className="w-12 h-12 text-blue-500 mb-4 animate-spin" />
+        <p className="text-gray-600">{message}</p>
+      </div>
+    );
+
+    // For PDF files
+    if (currentDocument.type === 'PDF') {
+      return (
+        <div className="w-full max-w-5xl mx-auto">
+          <div className="bg-white rounded-lg p-4 sm:p-6 min-h-full">
+            {renderDocumentHeader()}
+            <div className="pdf-container border border-gray-200 rounded-lg overflow-hidden">
+              {currentDocument.rawContent ? (
+                <PdfViewer
+                  file={currentDocument.rawContent}
+                  scale={zoomLevel / 100}
+                  className="w-full"
+                  onLoadSuccess={(numPages) => {
+                    console.log('PDF loaded successfully in Dashboard2');
+                    setCurrentDocument(prev => ({
+                      ...prev,
+                      pages: numPages
+                    }));
+                  }}
+                  onLoadError={(error) => {
+                    console.error('PDF load error in Dashboard2:', error);
+                  }}
+                />
+              ) : renderLoadingState('Preparing PDF viewer...')}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // For DOCX files
+    if (currentDocument.type === 'DOCX') {
+      if (!currentDocument.content) {
+        return renderLoadingState('Processing Word document...');
+      }
+
+      return (
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg p-4 sm:p-6 min-h-full">
+            {renderDocumentHeader()}
+            <div className="prose prose-lg max-w-none">
+              {/* Check if content is HTML or plain text */}
+              {currentDocument.content.includes('<') ? (
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: currentDocument.content
+                  }}
+                />
+              ) : (
+                <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
+                  {currentDocument.content}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // For text files
     if (currentDocument.type === 'TXT' && currentDocument.content) {
       return (
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-lg p-8 min-h-full">
-            <h1 className="text-4xl font-bold text-gray-900 mb-8">
-              {currentDocument.title}
-            </h1>
+          <div className="bg-white rounded-lg p-4 sm:p-6 min-h-full">
+            {renderDocumentHeader()}
             <div className="prose prose-lg max-w-none">
-              <pre className="whitespace-pre-wrap text-gray-700 leading-relaxed font-sans">
+              <pre className="whitespace-pre-wrap text-gray-700 leading-relaxed font-sans bg-gray-50 p-4 rounded-lg">
                 {currentDocument.content}
               </pre>
             </div>
@@ -484,40 +723,18 @@ const Dashboard2: React.FC = () => {
       );
     }
 
-    // For PDF/DOCX files, show placeholder with document info
+    // Fallback for unsupported formats or missing content
     return (
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg p-8 min-h-full">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-blue-600" />
-            </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">
-              {currentDocument.title}
-            </h1>
-            <div className="flex items-center justify-center space-x-4 text-sm text-gray-600">
-              <span>{currentDocument.type}</span>
-              <span>•</span>
-              <span>{currentDocument.size}</span>
-              {currentDocument.pages && (
-                <>
-                  <span>•</span>
-                  <span>{currentDocument.pages} pages</span>
-                </>
-              )}
-            </div>
-          </div>
-
+        <div className="bg-white rounded-lg p-6 min-h-full">
+          {renderDocumentHeader()}
           <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <Loader2 className="w-12 h-12 text-gray-400 mx-auto mb-4 animate-spin" />
             <h3 className="text-lg font-semibold text-gray-700 mb-2">
-              Document Preview Not Available
+              Loading Document...
             </h3>
-            <p className="text-gray-600 mb-4">
-              PDF and DOCX preview functionality is coming soon. For now, you can use the timer and study features.
-            </p>
-            <p className="text-sm text-gray-500">
-              Try uploading a TXT file to see the full document content.
+            <p className="text-gray-600">
+              Please wait while we load your document.
             </p>
           </div>
         </div>
